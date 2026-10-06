@@ -1,10 +1,24 @@
 const Todo = require("../models/Todo");
 
-// GET /api/todos
+// GET /api/todos?page=1&limit=10
 const getTodos = async (req, res) => {
   try {
-    const todos = await Todo.find();
-    res.status(200).json(todos);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const totalTodos = await Todo.countDocuments();
+    const todos = await Todo.find()
+      .sort({ createdAt: -1 }) // Sort newest first
+      .skip(skip)
+      .limit(limit);
+
+    res.status(200).json({
+      todos,
+      currentPage: page,
+      totalPages: Math.ceil(totalTodos / limit),
+      totalTodos,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
@@ -16,7 +30,6 @@ const createTodo = async (req, res) => {
   try {
     const { title } = req.body;
 
-    // Validate request body
     if (!title) {
       return res.status(400).json({ message: "Title is required" });
     }

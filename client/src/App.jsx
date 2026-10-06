@@ -11,6 +11,10 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 5;
+
   // Shows an error in the banner (and logs it in the console)
   function showError(err) {
     console.error(err);
@@ -23,7 +27,8 @@ function App() {
       try {
         setError("");
         const data = await getTodos();
-        setTodos(data);
+        // Fallback check to ensure data is an array
+        setTodos(Array.isArray(data) ? data : data?.todos || []);
       } catch (err) {
         showError(err);
       } finally {
@@ -34,6 +39,11 @@ function App() {
 
     loadTodos();
   }, []);
+
+  // Reset to page 1 whenever filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   // Add a new todo to the top of the list
   async function handleAdd(title) {
@@ -89,6 +99,11 @@ function App() {
   // Only the todos that match the selected filter
   const filteredTodos = todos.filter(FILTERS[filter].test);
 
+  // Pagination logic: Slice the filtered list down to 5 items for the active page
+  const totalPages = Math.ceil(filteredTodos.length / ITEMS_PER_PAGE) || 1;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedTodos = filteredTodos.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
   // "1 task" or "3 tasks"
   const taskWord = filteredTodos.length === 1 ? "task" : "tasks";
 
@@ -113,16 +128,50 @@ function App() {
     }
 
     return (
-      <ul className="todo-list">
-        {filteredTodos.map((todo) => (
-          <TodoItem
-            key={todo._id}
-            todo={todo}
-            onUpdate={handleUpdate}
-            onDelete={handleDelete}
-          />
-        ))}
-      </ul>
+      <>
+        <ul className="todo-list">
+          {paginatedTodos.map((todo) => (
+            <TodoItem
+              key={todo._id}
+              todo={todo}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+            />
+          ))}
+        </ul>
+
+        {/* Minimal pagination bar preserving existing styles */}
+        {totalPages > 1 && (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginTop: "1.5rem",
+              paddingTop: "1rem",
+              borderTop: "1px solid #eee",
+            }}
+          >
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              style={{ padding: "6px 12px", cursor: currentPage === 1 ? "not-allowed" : "pointer" }}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: "0.9rem", opacity: 0.8 }}>
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              style={{ padding: "6px 12px", cursor: currentPage === totalPages ? "not-allowed" : "pointer" }}
+            >
+              Next
+            </button>
+          </div>
+        )}
+      </>
     );
   }
 
